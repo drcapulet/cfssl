@@ -66,6 +66,11 @@
 			"Rev": "3c4ebd218625c9364c33db6d39c276d80c3090c6"
 		},
 		{
+			"ImportPath": "github.com/jmoiron/sqlx",
+			"Comment": "sqlx-v1.1-53-g54aec3f",
+			"Rev": "54aec3fd91a2b2129ffaca0d652b8a9223ee2d9e"
+		},
+		{
 			"ImportPath": "github.com/kardianos/osext",
 			"Rev": "6e7f843663477789fac7c02def0d0909e969b4e5"
 		},

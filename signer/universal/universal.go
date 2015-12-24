@@ -3,7 +3,6 @@ package universal
 
 import (
 	"crypto/x509"
-	"database/sql"
 
 	"github.com/cloudflare/cfssl/config"
 	cferr "github.com/cloudflare/cfssl/errors"
@@ -12,6 +11,8 @@ import (
 	"github.com/cloudflare/cfssl/signer/local"
 	"github.com/cloudflare/cfssl/signer/pkcs11"
 	"github.com/cloudflare/cfssl/signer/remote"
+
+	"github.com/jmoiron/sqlx"
 )
 
 // Signer represents a universal signer which is both local and remote
@@ -212,7 +213,7 @@ func (s *Signer) Info(req info.Req) (resp *info.Resp, err error) {
 }
 
 // SetDB sets the signer's cert db.
-func (s *Signer) SetDB(db *sql.DB) {
+func (s *Signer) SetDB(db *sqlx.DB) {
 	s.local.SetDB(db)
 	s.remote.SetDB(db)
 }

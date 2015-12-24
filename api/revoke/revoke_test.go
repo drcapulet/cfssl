@@ -2,7 +2,6 @@ package revoke
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -13,9 +12,11 @@ import (
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/certdb/testdb"
+
+	"github.com/jmoiron/sqlx"
 )
 
-func prepDB() (db *sql.DB, err error) {
+func prepDB() (db *sqlx.DB, err error) {
 	db = testdb.SQLiteDB("../../certdb/testdb/certstore_development.db")
 	expirationTime := time.Now().AddDate(1, 0, 0)
 	var cert = &certdb.CertificateRecord{
@@ -32,7 +33,7 @@ func prepDB() (db *sql.DB, err error) {
 	return
 }
 
-func testRevokeCert(t *testing.T, db *sql.DB, serial string, reason string) (resp *http.Response, body []byte) {
+func testRevokeCert(t *testing.T, db *sqlx.DB, serial string, reason string) (resp *http.Response, body []byte) {
 	ts := httptest.NewServer(NewHandler(db))
 	defer ts.Close()
 

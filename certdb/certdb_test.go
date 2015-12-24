@@ -1,12 +1,13 @@
 package certdb
 
 import (
-	"database/sql"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/cloudflare/cfssl/certdb/testdb"
+
+	"github.com/jmoiron/sqlx"
 )
 
 const (
@@ -24,7 +25,7 @@ func roughlySameTime(t1, t2 time.Time) bool {
 	return math.Abs(float64(t1.Sub(t2))) < float64(time.Second)
 }
 
-func testEverything(db *sql.DB, t *testing.T) {
+func testEverything(db *sqlx.DB, t *testing.T) {
 	testInsertCertificateAndGetCertificate(db, t)
 	testInsertCertificateAndGetUnexpiredCertificate(db, t)
 	testUpdateCertificateAndGetCertificate(db, t)
@@ -34,7 +35,9 @@ func testEverything(db *sql.DB, t *testing.T) {
 	testUpsertOCSPAndGetOCSP(db, t)
 }
 
-func testInsertCertificateAndGetCertificate(db *sql.DB, t *testing.T) {
+func testInsertCertificateAndGetCertificate(db *sqlx.DB, t *testing.T) {
+	testdb.Truncate(db)
+
 	expiry := time.Date(2010, time.December, 25, 23, 0, 0, 0, time.UTC)
 	want := &CertificateRecord{
 		PEM:     "fake cert data",
@@ -72,7 +75,9 @@ func testInsertCertificateAndGetCertificate(db *sql.DB, t *testing.T) {
 	}
 }
 
-func testInsertCertificateAndGetUnexpiredCertificate(db *sql.DB, t *testing.T) {
+func testInsertCertificateAndGetUnexpiredCertificate(db *sqlx.DB, t *testing.T) {
+	testdb.Truncate(db)
+
 	expiry := time.Now().Add(time.Minute)
 	want := &CertificateRecord{
 		PEM:     "fake cert data",
@@ -106,11 +111,13 @@ func testInsertCertificateAndGetUnexpiredCertificate(db *sql.DB, t *testing.T) {
 	}
 
 	if len(unexpired) != 1 {
-		t.Error("should not have other than 1 unexpired certificate record:", len(unexpired))
+		t.Error("Should have 1 unexpired certificate record:", len(unexpired))
 	}
 }
 
-func testUpdateCertificateAndGetCertificate(db *sql.DB, t *testing.T) {
+func testUpdateCertificateAndGetCertificate(db *sqlx.DB, t *testing.T) {
+	testdb.Truncate(db)
+
 	expiry := time.Date(2010, time.December, 25, 23, 0, 0, 0, time.UTC)
 	want := &CertificateRecord{
 		PEM:     "fake cert data",
@@ -119,6 +126,11 @@ func testUpdateCertificateAndGetCertificate(db *sql.DB, t *testing.T) {
 		Status:  "good",
 		Reason:  0,
 		Expiry:  expiry,
+	}
+
+	// Make sure the revoke on a non-existent cert
+	if err := RevokeCertificate(db, want.Serial, 2); err == nil {
+		t.Fatal("Expected error")
 	}
 
 	if err := InsertCertificate(db, want); err != nil {
@@ -143,13 +155,16 @@ func testUpdateCertificateAndGetCertificate(db *sql.DB, t *testing.T) {
 	}
 }
 
-func testInsertOCSPAndGetOCSP(db *sql.DB, t *testing.T) {
+func testInsertOCSPAndGetOCSP(db *sqlx.DB, t *testing.T) {
+	testdb.Truncate(db)
+
 	expiry := time.Date(2010, time.December, 25, 23, 0, 0, 0, time.UTC)
 	want := &OCSPRecord{
 		Serial: "fake serial",
 		Body:   "fake body",
 		Expiry: expiry,
 	}
+	setupGoodCert(db, t, want)
 
 	if err := InsertOCSP(db, want); err != nil {
 		t.Fatal(err)
@@ -176,12 +191,15 @@ func testInsertOCSPAndGetOCSP(db *sql.DB, t *testing.T) {
 	}
 }
 
-func testInsertOCSPAndGetUnexpiredOCSP(db *sql.DB, t *testing.T) {
+func testInsertOCSPAndGetUnexpiredOCSP(db *sqlx.DB, t *testing.T) {
+	testdb.Truncate(db)
+
 	want := &OCSPRecord{
 		Serial: "fake serial 2",
 		Body:   "fake body",
 		Expiry: time.Now().Add(time.Minute),
 	}
+	setupGoodCert(db, t, want)
 
 	if err := InsertOCSP(db, want); err != nil {
 		t.Fatal(err)
@@ -208,11 +226,19 @@ func testInsertOCSPAndGetUnexpiredOCSP(db *sql.DB, t *testing.T) {
 	}
 }
 
-func testUpdateOCSPAndGetOCSP(db *sql.DB, t *testing.T) {
+func testUpdateOCSPAndGetOCSP(db *sqlx.DB, t *testing.T) {
+	testdb.Truncate(db)
+
 	want := &OCSPRecord{
 		Serial: "fake serial 3",
 		Body:   "fake body",
 		Expiry: time.Date(2010, time.December, 25, 23, 0, 0, 0, time.UTC),
+	}
+	setupGoodCert(db, t, want)
+
+	// Make sure the update fails
+	if err := UpdateOCSP(db, want.Serial, want.Body, want.Expiry); err == nil {
+		t.Fatal("Expected error")
 	}
 
 	if err := InsertOCSP(db, want); err != nil {
@@ -236,12 +262,15 @@ func testUpdateOCSPAndGetOCSP(db *sql.DB, t *testing.T) {
 	}
 }
 
-func testUpsertOCSPAndGetOCSP(db *sql.DB, t *testing.T) {
+func testUpsertOCSPAndGetOCSP(db *sqlx.DB, t *testing.T) {
+	testdb.Truncate(db)
+
 	want := &OCSPRecord{
 		Serial: "fake serial 3",
 		Body:   "fake body",
 		Expiry: time.Date(2010, time.December, 25, 23, 0, 0, 0, time.UTC),
 	}
+	setupGoodCert(db, t, want)
 
 	if err := UpsertOCSP(db, want.Serial, want.Body, want.Expiry); err != nil {
 		t.Fatal(err)
@@ -271,5 +300,20 @@ func testUpsertOCSPAndGetOCSP(db *sql.DB, t *testing.T) {
 	if want.Serial != got.Serial || got.Body != "fake body revoked" ||
 		!roughlySameTime(newExpiry, got.Expiry) {
 		t.Errorf("want OCSP %+v, got %+v", *want, *got)
+	}
+}
+
+func setupGoodCert(db *sqlx.DB, t *testing.T, r *OCSPRecord) {
+	certWant := &CertificateRecord{
+		PEM:     "fake cert data",
+		Serial:  r.Serial,
+		CALabel: "default",
+		Status:  "good",
+		Reason:  0,
+		Expiry:  time.Now().Add(time.Minute),
+	}
+
+	if err := InsertCertificate(db, certWant); err != nil {
+		t.Fatal(err)
 	}
 }
