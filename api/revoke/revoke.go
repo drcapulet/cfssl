@@ -2,7 +2,6 @@
 package revoke
 
 import (
-	"database/sql"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -11,16 +10,18 @@ import (
 	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/ocsp"
+
+	"github.com/jmoiron/sqlx"
 )
 
 // A Handler accepts requests with a serial number parameter
 // and revokes
 type Handler struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // NewHandler returns a new http.Handler that handles a revoke request.
-func NewHandler(db *sql.DB) http.Handler {
+func NewHandler(db *sqlx.DB) http.Handler {
 	return &api.HTTPHandler{
 		Handler: &Handler{
 			db: db,

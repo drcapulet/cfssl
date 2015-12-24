@@ -2,13 +2,14 @@
 package revoke
 
 import (
-	"database/sql"
 	"errors"
 
 	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/ocsp"
+
+	"github.com/jmoiron/sqlx"
 )
 
 var revokeUsageTxt = `cfssl revoke -- revoke a certificate in the certificate store
@@ -38,7 +39,7 @@ func revokeMain(args []string, c cli.Config) (err error) {
 		return errors.New("need DB config file (provide with -db-config)")
 	}
 
-	var db *sql.DB
+	var db *sqlx.DB
 	db, err = certdb.DBFromConfig(c.DBConfigFile)
 	if err != nil {
 		return err

@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"database/sql"
 	"encoding/asn1"
 	"encoding/binary"
 	"encoding/hex"
@@ -19,6 +18,7 @@ import (
 	"math/big"
 	"net"
 	"net/mail"
+
 	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/config"
 	cferr "github.com/cloudflare/cfssl/errors"
@@ -26,8 +26,10 @@ import (
 	"github.com/cloudflare/cfssl/info"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/signer"
+
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/client"
+	"github.com/jmoiron/sqlx"
 )
 
 // Signer contains a signer that uses the standard library to
@@ -37,7 +39,7 @@ type Signer struct {
 	priv    crypto.Signer
 	policy  *config.Signing
 	sigAlgo x509.SignatureAlgorithm
-	db      *sql.DB
+	db      *sqlx.DB
 }
 
 // NewSigner creates a new Signer directly from a
@@ -346,11 +348,11 @@ func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
 
 	if s.db != nil {
 		var certRecord = &certdb.CertificateRecord{
-			Serial:    certTBS.SerialNumber.String(),
-			CALabel:   req.Label,
-			Status:    "good",
-			Expiry:    certTBS.NotAfter,
-			PEM:       string(signedCert),
+			Serial:  certTBS.SerialNumber.String(),
+			CALabel: req.Label,
+			Status:  "good",
+			Expiry:  certTBS.NotAfter,
+			PEM:     string(signedCert),
 		}
 
 		err = certdb.InsertCertificate(s.db, certRecord)
@@ -418,7 +420,7 @@ func (s *Signer) SetPolicy(policy *config.Signing) {
 }
 
 // SetDB sets the signer's cert db
-func (s *Signer) SetDB(db *sql.DB) {
+func (s *Signer) SetDB(db *sqlx.DB) {
 	s.db = db
 }
 

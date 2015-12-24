@@ -2,13 +2,14 @@
 package ocspdump
 
 import (
-	"database/sql"
 	"encoding/base64"
 	"fmt"
 
 	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/log"
+
+	"github.com/jmoiron/sqlx"
 )
 
 // Usage text of 'cfssl ocspdump'
@@ -31,13 +32,13 @@ func ocspdumpMain(args []string, c cli.Config) (err error) {
 		return
 	}
 
-	var db *sql.DB
+	var db *sqlx.DB
 	db, err = certdb.DBFromConfig(c.DBConfigFile)
 	if err != nil {
 		return err
 	}
 
-	var records []*certdb.OCSPRecord
+	var records []certdb.OCSPRecord
 	records, err = certdb.GetUnexpiredOCSPs(db)
 	if err != nil {
 		return err

@@ -2,7 +2,6 @@
 package serve
 
 import (
-	"database/sql"
 	"errors"
 	"net"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	rice "github.com/GeertJohan/go.rice"
 	"github.com/cloudflare/cfssl/api/bundle"
 	"github.com/cloudflare/cfssl/api/certinfo"
 	"github.com/cloudflare/cfssl/api/crl"
@@ -31,6 +29,9 @@ import (
 	"github.com/cloudflare/cfssl/ocsp"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/ubiquity"
+
+	rice "github.com/GeertJohan/go.rice"
+	"github.com/jmoiron/sqlx"
 )
 
 // Usage text of 'cfssl serve'
@@ -54,7 +55,7 @@ var (
 	conf       cli.Config
 	s          signer.Signer
 	ocspSigner ocsp.Signer
-	db         *sql.DB
+	db         *sqlx.DB
 )
 
 // V1APIPrefix is the prefix of all CFSSL V1 API Endpoints.

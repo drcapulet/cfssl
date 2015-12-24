@@ -2,7 +2,6 @@
 package ocsprefresh
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/cloudflare/cfssl/certdb"
@@ -10,6 +9,8 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/ocsp"
+
+	"github.com/jmoiron/sqlx"
 )
 
 // Usage text of 'cfssl ocsprefresh'
@@ -38,13 +39,13 @@ func ocsprefreshMain(args []string, c cli.Config) (err error) {
 		return
 	}
 
-	var db *sql.DB
+	var db *sqlx.DB
 	db, err = certdb.DBFromConfig(c.DBConfigFile)
 	if err != nil {
 		return err
 	}
 
-	var certs []*certdb.CertificateRecord
+	var certs []certdb.CertificateRecord
 	certs, err = certdb.GetUnexpiredCertificates(db)
 	if err != nil {
 		return err

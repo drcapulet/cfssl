@@ -2,17 +2,17 @@ package revoke
 
 import (
 	"testing"
-
-	"database/sql"
 	"time"
 
 	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/certdb/testdb"
 	"github.com/cloudflare/cfssl/cli"
+
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/ocsp"
 )
 
-func prepDB() (db *sql.DB, err error) {
+func prepDB() (db *sqlx.DB, err error) {
 	db = testdb.SQLiteDB("../../certdb/testdb/certstore_development.db")
 	expirationTime := time.Now().AddDate(1, 0, 0)
 	var cert = &certdb.CertificateRecord{

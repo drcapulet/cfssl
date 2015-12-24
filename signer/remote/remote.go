@@ -2,7 +2,6 @@ package remote
 
 import (
 	"crypto/x509"
-	"database/sql"
 	"encoding/json"
 	"errors"
 
@@ -11,6 +10,8 @@ import (
 	cferr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/info"
 	"github.com/cloudflare/cfssl/signer"
+
+	"github.com/jmoiron/sqlx"
 )
 
 // A Signer represents a CFSSL instance running as signing server.
@@ -108,7 +109,7 @@ func (s *Signer) SetPolicy(policy *config.Signing) {
 }
 
 // SetDB sets the signer's cert db
-func (s *Signer) SetDB(db *sql.DB) {
+func (s *Signer) SetDB(db *sqlx.DB) {
 	// noop
 }
 

@@ -609,7 +609,7 @@ func TestSignerDBPersistence(t *testing.T) {
 		t.Fatal("API operation failed")
 	}
 
-	var crs []*certdb.CertificateRecord
+	var crs []certdb.CertificateRecord
 	crs, err = certdb.GetUnexpiredCertificates(db)
 	if err != nil {
 		t.Fatal("Failed to get unexpired certificates")
