@@ -63,6 +63,7 @@ type Config struct {
 	PGPPrivate        string
 	Serial            string
 	DBConfigFile      string
+	CRLExpiry         time.Duration
 }
 
 // registerFlags defines all cfssl command flags and associates their values with variables.
@@ -70,7 +71,7 @@ func registerFlags(c *Config, f *flag.FlagSet) {
 	f.StringVar(&c.Hostname, "hostname", "", "Hostname for the cert, could be a comma-separated hostname list")
 	f.StringVar(&c.CertFile, "cert", "", "Client certificate that contains the public key")
 	f.StringVar(&c.CSRFile, "csr", "", "Certificate signature request file for new public key")
-	f.StringVar(&c.CAFile, "ca", "", "CA used to sign the new certificate")
+	f.StringVar(&c.CAFile, "ca", "", "CA used to sign the new certificate / CRL")
 	f.StringVar(&c.CAKeyFile, "ca-key", "", "CA private key")
 	f.StringVar(&c.TLSCertFile, "tls-cert", "", "Other endpoint CA to set up TLS protocol")
 	f.StringVar(&c.TLSKeyFile, "tls-key", "", "Other endpoint CA private key")
@@ -112,6 +113,7 @@ func registerFlags(c *Config, f *flag.FlagSet) {
 	f.StringVar(&c.PGPPrivate, "pgp-private", "", "file to load a PGP Private key decryption")
 	f.StringVar(&c.Serial, "serial", "", "certificate serial number")
 	f.StringVar(&c.DBConfigFile, "db-config", "", "certificate db configuration file")
+	f.DurationVar(&c.CRLExpiry, "crl-expiry", 168*time.Hour, "How long the CRL should be valid (default: 1 week)")
 
 	if pkcs11.Enabled {
 		f.StringVar(&c.Module, "pkcs11-module", "", "PKCS #11 module")

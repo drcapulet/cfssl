@@ -26,6 +26,7 @@ func roughlySameTime(t1, t2 time.Time) bool {
 
 func testEverything(db *sql.DB, t *testing.T) {
 	testInsertCertificateAndGetCertificate(db, t)
+	testInsertCertificateAndGetRevokedCertificate(db, t)
 	testInsertCertificateAndGetUnexpiredCertificate(db, t)
 	testUpdateCertificateAndGetCertificate(db, t)
 	testInsertOCSPAndGetOCSP(db, t)
@@ -69,6 +70,50 @@ func testInsertCertificateAndGetCertificate(db *sql.DB, t *testing.T) {
 
 	if len(unexpired) != 0 {
 		t.Error("should not have unexpired certificate record")
+	}
+}
+
+func testInsertCertificateAndGetRevokedCertificate(db *sql.DB, t *testing.T) {
+	expiry := time.Now().Add(time.Minute)
+	err := InsertCertificate(db, &CertificateRecord{
+		PEM:     "fake cert data",
+		Serial:  "1",
+		CALabel: "default",
+		Status:  "good",
+		Reason:  0,
+		Expiry:  expiry,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = InsertCertificate(db, &CertificateRecord{
+		PEM:     "fake cert data",
+		Serial:  "2",
+		CALabel: "default",
+		Status:  "good",
+		Reason:  0,
+		Expiry:  expiry,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = RevokeCertificate(db, "1", 0); err != nil {
+		t.Fatal(err)
+	}
+
+	revoked, err := GetRevokedCertificates(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(revoked) != 1 {
+		t.Fatal("should not have other than 1 revoked certificate record:", len(revoked))
+	}
+
+	if revoked[0].Serial != "1" {
+		t.Fatal("Wrong revoked serial:", revoked[0].Serial)
 	}
 }
 

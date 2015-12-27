@@ -2,84 +2,89 @@
 package gencrl
 
 import (
+	"database/sql"
+	"errors"
+
+	"github.com/cloudflare/cfssl/certdb"
 	"github.com/cloudflare/cfssl/cli"
 	"github.com/cloudflare/cfssl/crl"
-	"strings"
 )
 
 var gencrlUsageText = `cfssl gencrl -- generate a new Certificate Revocation List
+If -db-config is provided, it will pull the list of revoked certificates from there.
+Otherwise, the text file with a list of serial numbers is required.
 
 Usage of gencrl:
-        cfssl gencrl INPUTFILE CERT KEY TIME
+        cfssl gencrl -ca cert -ca-key key [-crl-expiry 24h][-db-config db-config] [SERALLIST]
 
 Arguments:
-        INPUTFILE:               Text file with one serial number per line, use '-' for reading text from stdin
-        CERT:                    The certificate that is signing this CRL, use '-' for reading text from stdin
-        KEY:                     The private key of the certificate that is signing the CRL, use '-' for reading text from stdin
-        TIME (OPTIONAL):         The desired expiration from now, in seconds, use '-' for reading text from stdin
+        SERALLIST (OPTIONAL):    Text file with one serial number per line, use '-' for reading text from stdin
 
 Flags:
 `
-var gencrlFlags = []string{}
+var gencrlFlags = []string{"ca", "ca-key", "crl-expiry", "db-config"}
 
 func gencrlMain(args []string, c cli.Config) (err error) {
-	serialList, args, err := cli.PopFirstArgument(args)
-	if err != nil {
-		return
+	if c.DBConfigFile != "" && len(args) > 0 {
+		return errors.New("Only provide either DB config file (with -db-config) or serial list")
+	} else if c.DBConfigFile == "" && len(args) == 0 {
+		return errors.New("Need to provide either DB config file (with -db-config) or serial list")
+	} else if c.DBConfigFile == "" && len(args) > 1 {
+		return errors.New("Provided too many arguments, only expected one")
 	}
 
-	serialListBytes, err := cli.ReadStdin(serialList)
-	if err != nil {
-		return
+	if c.CAFile == "" {
+		return errors.New("Need a CA certificate (provide one with -ca)")
 	}
 
-	certFile, args, err := cli.PopFirstArgument(args)
-	if err != nil {
-		return
+	if c.CAKeyFile == "" {
+		return errors.New("Need a CA key (provide one with -ca-key)")
 	}
 
-	certFileBytes, err := cli.ReadStdin(certFile)
+	// Read in the CA + CA Key
+	certFileBytes, err := cli.ReadStdin(c.CAFile)
 	if err != nil {
-		return
+		return err
 	}
 
-	keyFile, args, err := cli.PopFirstArgument(args)
+	keyBytes, err := cli.ReadStdin(c.CAKeyFile)
 	if err != nil {
-		return
+		return err
 	}
 
-	keyBytes, err := cli.ReadStdin(keyFile)
-	if err != nil {
-		return
-	}
+	var req []byte // Holds the signed CRL
 
-	// Default value if no expiry time is given
-	timeString := string("0")
-
-	if len(args) > 0 {
-		timeArg, _, err := cli.PopFirstArgument(args)
+	if c.DBConfigFile == "" {
+		serialList, _, err := cli.PopFirstArgument(args)
 		if err != nil {
 			return err
 		}
 
-		timeBytes, err := cli.ReadStdin(timeArg)
+		serialListBytes, err := cli.ReadStdin(serialList)
 		if err != nil {
 			return err
 		}
 
-		timeString = string(timeBytes)
+		req, err = crl.NewCRLFromFile(serialListBytes, certFileBytes, keyBytes, c.CRLExpiry)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Load in the DB
+		var db *sql.DB
+		db, err = certdb.DBFromConfig(c.DBConfigFile)
+		if err != nil {
+			return err
+		}
 
-		// This is used to get rid of newlines
-		timeString = strings.TrimSpace(timeString)
-
-	}
-
-	req, err := crl.NewCRLFromFile(serialListBytes, certFileBytes, keyBytes, timeString)
-	if err != nil {
-		return
+		req, err = crl.NewCRLFromDB(db, certFileBytes, keyBytes, c.CRLExpiry)
+		if err != nil {
+			return err
+		}
 	}
 
 	cli.PrintCRL(req)
+
 	return nil
 }
 

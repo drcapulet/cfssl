@@ -41,6 +41,10 @@ SELECT %s FROM certificates
 	selectAllSQL = `
 SELECT %s FROM certificates;`
 
+	selectAllRevokedSQL = `
+SELECT %s FROM certificates
+WHERE status = 'revoked';`
+
 	selectAllUnexpiredSQL = `
 SELECT %s FROM certificates
 WHERE CURRENT_TIMESTAMP < expiry;`
@@ -117,6 +121,26 @@ func GetCertificate(db *sql.DB, serial string) (*CertificateRecord, error) {
 		return cr, wrapCertStoreError(sqlstruct.Scan(cr, rows))
 	}
 	return nil, nil
+}
+
+// GetRevokedCertificates gets all revoked certificates from db.
+func GetRevokedCertificates(db *sql.DB) (crs []*CertificateRecord, err error) {
+	cr := new(CertificateRecord)
+	rows, err := db.Query(fmt.Sprintf(selectAllRevokedSQL, sqlstruct.Columns(*cr)))
+	if err != nil {
+		return nil, wrapCertStoreError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = sqlstruct.Scan(cr, rows)
+		if err != nil {
+			return nil, wrapCertStoreError(err)
+		}
+		crs = append(crs, cr)
+	}
+
+	return crs, nil
 }
 
 // GetUnexpiredCertificates gets all unexpired certificate from db.
