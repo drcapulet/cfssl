@@ -10,13 +10,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const (
-	sqliteDBFile = "testdb/certstore_development.db"
-)
-
 func TestSQLite(t *testing.T) {
-	db := testdb.SQLiteDB(sqliteDBFile)
-	testEverything(db, t)
+	testEverything("sqlite", t)
 }
 
 // roughlySameTime decides if t1 and t2 are close enough.
@@ -25,18 +20,19 @@ func roughlySameTime(t1, t2 time.Time) bool {
 	return math.Abs(float64(t1.Sub(t2))) < float64(time.Second)
 }
 
-func testEverything(db *sqlx.DB, t *testing.T) {
-	testInsertCertificateAndGetCertificate(db, t)
-	testInsertCertificateAndGetUnexpiredCertificate(db, t)
-	testUpdateCertificateAndGetCertificate(db, t)
-	testInsertOCSPAndGetOCSP(db, t)
-	testInsertOCSPAndGetUnexpiredOCSP(db, t)
-	testUpdateOCSPAndGetOCSP(db, t)
-	testUpsertOCSPAndGetOCSP(db, t)
+func testEverything(driver string, t *testing.T) {
+	testInsertCertificateAndGetCertificate(driver, t)
+	testInsertCertificateAndGetUnexpiredCertificate(driver, t)
+	testUpdateCertificateAndGetCertificate(driver, t)
+	testInsertOCSPAndGetOCSP(driver, t)
+	testInsertOCSPAndGetUnexpiredOCSP(driver, t)
+	testUpdateOCSPAndGetOCSP(driver, t)
+	testUpsertOCSPAndGetOCSP(driver, t)
 }
 
-func testInsertCertificateAndGetCertificate(db *sqlx.DB, t *testing.T) {
-	testdb.Truncate(db)
+func testInsertCertificateAndGetCertificate(driver string, t *testing.T) {
+	db := testdb.Setup(driver)
+	defer db.Close()
 
 	expiry := time.Date(2010, time.December, 25, 23, 0, 0, 0, time.UTC)
 	want := &CertificateRecord{
@@ -75,8 +71,9 @@ func testInsertCertificateAndGetCertificate(db *sqlx.DB, t *testing.T) {
 	}
 }
 
-func testInsertCertificateAndGetUnexpiredCertificate(db *sqlx.DB, t *testing.T) {
-	testdb.Truncate(db)
+func testInsertCertificateAndGetUnexpiredCertificate(driver string, t *testing.T) {
+	db := testdb.Setup(driver)
+	defer db.Close()
 
 	expiry := time.Now().Add(time.Minute)
 	want := &CertificateRecord{
@@ -115,8 +112,9 @@ func testInsertCertificateAndGetUnexpiredCertificate(db *sqlx.DB, t *testing.T) 
 	}
 }
 
-func testUpdateCertificateAndGetCertificate(db *sqlx.DB, t *testing.T) {
-	testdb.Truncate(db)
+func testUpdateCertificateAndGetCertificate(driver string, t *testing.T) {
+	db := testdb.Setup(driver)
+	defer db.Close()
 
 	expiry := time.Date(2010, time.December, 25, 23, 0, 0, 0, time.UTC)
 	want := &CertificateRecord{
@@ -155,8 +153,9 @@ func testUpdateCertificateAndGetCertificate(db *sqlx.DB, t *testing.T) {
 	}
 }
 
-func testInsertOCSPAndGetOCSP(db *sqlx.DB, t *testing.T) {
-	testdb.Truncate(db)
+func testInsertOCSPAndGetOCSP(driver string, t *testing.T) {
+	db := testdb.Setup(driver)
+	defer db.Close()
 
 	expiry := time.Date(2010, time.December, 25, 23, 0, 0, 0, time.UTC)
 	want := &OCSPRecord{
@@ -191,8 +190,9 @@ func testInsertOCSPAndGetOCSP(db *sqlx.DB, t *testing.T) {
 	}
 }
 
-func testInsertOCSPAndGetUnexpiredOCSP(db *sqlx.DB, t *testing.T) {
-	testdb.Truncate(db)
+func testInsertOCSPAndGetUnexpiredOCSP(driver string, t *testing.T) {
+	db := testdb.Setup(driver)
+	defer db.Close()
 
 	want := &OCSPRecord{
 		Serial: "fake serial 2",
@@ -226,8 +226,9 @@ func testInsertOCSPAndGetUnexpiredOCSP(db *sqlx.DB, t *testing.T) {
 	}
 }
 
-func testUpdateOCSPAndGetOCSP(db *sqlx.DB, t *testing.T) {
-	testdb.Truncate(db)
+func testUpdateOCSPAndGetOCSP(driver string, t *testing.T) {
+	db := testdb.Setup(driver)
+	defer db.Close()
 
 	want := &OCSPRecord{
 		Serial: "fake serial 3",
@@ -262,8 +263,9 @@ func testUpdateOCSPAndGetOCSP(db *sqlx.DB, t *testing.T) {
 	}
 }
 
-func testUpsertOCSPAndGetOCSP(db *sqlx.DB, t *testing.T) {
-	testdb.Truncate(db)
+func testUpsertOCSPAndGetOCSP(driver string, t *testing.T) {
+	db := testdb.Setup(driver)
+	defer db.Close()
 
 	want := &OCSPRecord{
 		Serial: "fake serial 3",

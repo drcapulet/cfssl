@@ -13,7 +13,7 @@ import (
 )
 
 func prepDB() (db *sqlx.DB, err error) {
-	db = testdb.SQLiteDB("../../certdb/testdb/certstore_development.db")
+	db = testdb.SQLiteDBAtPath("../../certdb/testdb/certstore_development.db")
 	expirationTime := time.Now().AddDate(1, 0, 0)
 	var cert = &certdb.CertificateRecord{
 		Serial: "1",

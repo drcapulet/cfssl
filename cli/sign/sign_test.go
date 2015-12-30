@@ -37,7 +37,7 @@ func TestBadSigner(t *testing.T) {
 }
 
 func TestSignerWithDB(t *testing.T) {
-	db := testdb.SQLiteDB("../../certdb/testdb/certstore_development.db")
+	db := testdb.SQLiteDBAtPath("../../certdb/testdb/certstore_development.db")
 	err := signerMain([]string{"../../testdata/server.csr"},
 		cli.Config{
 			CAFile:       "../../testdata/server.crt",
