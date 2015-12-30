@@ -46,7 +46,7 @@ func TestSignerDBPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	db := testdb.SQLiteDB("../../certdb/testdb/certstore_development.db")
+	db := testdb.SQLiteDBAtPath("../../certdb/testdb/certstore_development.db")
 	if err != nil {
 		t.Fatal(err)
 	}

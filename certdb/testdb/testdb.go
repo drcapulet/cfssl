@@ -2,80 +2,106 @@ package testdb
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 
+	"bitbucket.org/liamstask/goose/lib/goose"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"           // register postgresql driver
 	_ "github.com/mattn/go-sqlite3" // register sqlite3 driver
 )
 
-const (
-	pgTruncateTables = `
-CREATE OR REPLACE FUNCTION truncate_tables() RETURNS void AS $$
-DECLARE
-    statements CURSOR FOR
-        SELECT tablename FROM pg_tables
-        WHERE tablename != 'goose_db_version'
-          AND tableowner = session_user
-          AND schemaname = 'public';
-BEGIN
-    FOR stmt IN statements LOOP
-        EXECUTE 'TRUNCATE TABLE ' || quote_ident(stmt.tablename) || ' CASCADE;';
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-
-SELECT truncate_tables();
-`
-
-	sqliteTruncateTables = `
-DELETE FROM certificates;
-DELETE FROM ocsp_responses;
-`
-)
-
-// PostgreSQLDB returns a PostgreSQL db instance for certdb testing.
+// PostgreSQLDB returns a PostgreSQL db instance for certdb testing with an empty DB.
 func PostgreSQLDB() *sqlx.DB {
-	connStr := "dbname=certdb_development sslmode=disable"
+	connStr := "dbname=certdb_test sslmode=disable"
 
 	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
 		connStr = dbURL
+	} else {
+		prepDB := sqlx.MustOpen("postgres", "dbname=postgres sslmode=disable")
+		prepDB.MustExec("DROP DATABASE IF EXISTS certdb_test;")
+		prepDB.MustExec("CREATE DATABASE certdb_test;")
 	}
 
-	db, err := sqlx.Open("postgres", connStr)
-	if err != nil {
-		panic(err)
-	}
+	db := sqlx.MustOpen("postgres", connStr)
 
-	Truncate(db)
+	Migrate(db)
 
 	return db
 }
 
-// SQLiteDB returns a SQLite db instance for certdb testing.
-func SQLiteDB(dbpath string) *sqlx.DB {
-	db, err := sqlx.Open("sqlite3", dbpath)
-	if err != nil {
-		panic(err)
+// SQLiteDB returns a SQLite db instance for certdb testing with an empty DB.
+func SQLiteDB() *sqlx.DB {
+	return SQLiteDBAtPath(":memory:")
+}
+
+// SQLiteDBAtPath returns an on-disk SQLite db instance for certdb testing with
+// an empty DB. Mostly useful for testing the CLI
+func SQLiteDBAtPath(dbpath string) *sqlx.DB {
+	if _, err := os.Stat(dbpath); err == nil {
+		if err = os.Remove(dbpath); err != nil {
+			panic(err)
+		}
 	}
 
-	Truncate(db)
+	db := sqlx.MustOpen("sqlite3", dbpath)
+	Migrate(db)
 
 	return db
 }
 
-// Truncate truncates teh DB
-func Truncate(db *sqlx.DB) {
-	var sql string
+// Setup returns a DB for the given driver
+func Setup(driver string) *sqlx.DB {
+	switch driver {
+	case "postgres":
+		return PostgreSQLDB()
+	case "sqlite":
+		return SQLiteDB()
+	default:
+		panic("Unknown driver")
+	}
+}
+
+// Migrate makes sure the given db is current on migrations
+func Migrate(db *sqlx.DB) {
+	dbconf := gooseDBConf(db)
+
+	target, err := goose.GetMostRecentDBVersion(dbconf.MigrationsDir)
+	if err != nil {
+		panic(err)
+	}
+
+	err = goose.RunMigrationsOnDb(dbconf, dbconf.MigrationsDir, target, db.DB)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func gooseDBConf(db *sqlx.DB) *goose.DBConf {
+	driver := goose.DBDriver{}
+
+	var dir string
 	switch db.DriverName() {
 	case "postgres":
-		sql = pgTruncateTables
+		dir = "pg"
+		driver.Dialect = &goose.PostgresDialect{}
 	case "sqlite3":
-		sql = sqliteTruncateTables
+		dir = "sqlite"
+		driver.Dialect = &goose.Sqlite3Dialect{}
 	default:
 		panic("Unknown driver")
 	}
 
-	if _, err := db.Exec(sql); err != nil {
-		panic(err)
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("Unable to determine migrations directory")
+	}
+
+	migrationsDir := filepath.Join(filepath.Dir(file), "..", dir, "migrations")
+
+	return &goose.DBConf{
+		Driver:        driver,
+		Env:           "test",
+		MigrationsDir: migrationsDir,
 	}
 }

@@ -2,13 +2,8 @@
 
 package certdb
 
-import (
-	"testing"
-
-	"github.com/cloudflare/cfssl/certdb/testdb"
-)
+import "testing"
 
 func TestPostgreSQL(t *testing.T) {
-	db := testdb.PostgreSQLDB()
-	testEverything(db, t)
+	testEverything("postgres", t)
 }
