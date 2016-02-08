@@ -1,13 +1,14 @@
 package dbconf
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 
 	cferr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/log"
+
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"           // import just to initialize Postgres
 	_ "github.com/mattn/go-sqlite3" // import just to initialize SQLite
 )
@@ -47,12 +48,12 @@ func LoadFile(path string) (cfg *DBConfig, err error) {
 }
 
 // DBFromConfig opens a sql.DB from settings in a db config file
-func DBFromConfig(path string) (db *sql.DB, err error) {
+func DBFromConfig(path string) (db *sqlx.DB, err error) {
 	var dbCfg *DBConfig
 	dbCfg, err = LoadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	return sql.Open(dbCfg.DriverName, dbCfg.DataSourceName)
+	return sqlx.Open(dbCfg.DriverName, dbCfg.DataSourceName)
 }
